@@ -167,3 +167,37 @@
 -- END;
 
 -- task 5
+
+-- task 6
+
+-- CREATE TRIGGER UpdateCountOfStudents
+-- AFTER INSERT OR UPDATE OF group_id OR DELETE
+-- ON Students
+-- FOR EACH ROW
+-- DECLARE 
+--     c NUMBER;
+-- BEGIN
+--     IF INSERTING THEN
+--         SELECT c_val INTO c FROM Groups WHERE id = :NEW.group_id;
+--         c := c + 1;
+--         UPDATE Groups SET c_val = c WHERE id = :NEW.group_id;
+--     ELSIF DELETING THEN
+--         SELECT c_val INTO c FROM Groups WHERE id = :OLD.group_id;
+--         c := c - 1;
+--         UPDATE Groups SET c_val = c WHERE id = :OLD.group_id;
+--     ELSIF UPDATING THEN
+--         SELECT c_val INTO c FROM Groups WHERE id = :NEW.group_id;
+--         c := c + 1;
+--         UPDATE Groups SET c_val = c WHERE id = :NEW.group_id;
+--         SELECT c_val INTO c FROM Groups WHERE id = :OLD.group_id;
+--         c := c - 1;
+--         UPDATE Groups SET c_val = c WHERE id = :OLD.group_id;
+--     END IF;
+-- END;
+
+-- INSERT INTO Students VALUES (10, 'vova', 3);
+-- UPDATE Students SET group_id = 3 WHERE id = 3;
+SELECT * FROM Groups;
+
+
+
