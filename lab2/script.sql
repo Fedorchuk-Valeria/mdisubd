@@ -107,3 +107,32 @@
 -- END;
 
 -- task 3
+
+-- CREATE TRIGGER CascadeDelete
+-- BEFORE DELETE
+-- ON GROUPS
+-- FOR EACH ROW
+-- BEGIN
+--     DELETE FROM Students WHERE group_id = :OLD.id;
+-- END;
+
+-- DROP TRIGGER ForeignKey;
+
+-- CREATE TRIGGER ForeignKey
+-- BEFORE INSERT OR UPDATE OF group_id
+-- ON Students
+-- FOR EACH ROW
+-- FOLLOWS Unique_student_id
+-- DECLARE
+--     not_exist EXCEPTION;
+--     PRAGMA AUTONOMOUS_TRANSACTION;
+--     PRAGMA EXCEPTION_INIT(not_exist, -0106138);
+--     c NUMBER := 0;
+-- BEGIN
+--     SELECT COUNT(*) INTO c FROM Groups WHERE id = :NEW.group_id; 
+--     IF c != 1 THEN
+--         RAISE not_exist;
+--     END IF;
+-- END;
+
+
