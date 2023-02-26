@@ -172,6 +172,45 @@
 
 -- task 5
 
+-- DROP PROCEDURE RestoreDataByTime;
+
+-- CREATE PROCEDURE RestoreDataByTime(t IN TIMESTAMP)
+-- IS
+-- CURSOR log IS SELECT * FROM Logs WHERE time >= t ORDER BY time DESC;
+-- BEGIN
+--     FOR l IN log
+--     LOOP
+--         IF l.type = 'DELETE' THEN
+--             INSERT INTO Students VALUES (l.old_id, l.old_name, l.old_group);
+--         ELSIF l.type = 'UPDATE' THEN
+--             UPDATE Students SET name = l.old_name, group_id = l.old_group WHERE id = l.new_id; 
+--         ELSIF l.type = 'INSERT' THEN
+--             DELETE FROM Students WHERE id = l.new_id;
+--         END IF;
+--     END LOOP;
+--     DELETE FROM Logs WHERE time >= t;
+-- END RestoreDataByTime;
+
+-- DROP PROCEDURE RestoreDataByInterval;
+
+-- CREATE PROCEDURE RestoreDataByInterval(st IN TIMESTAMP, fin IN TIMESTAMP)
+-- IS
+-- CURSOR log IS 
+-- SELECT * FROM Logs WHERE time>=st AND time<=fin ORDER BY time DESC;
+-- BEGIN
+--     FOR l IN log
+--     LOOP
+--         IF l.type = 'DELETE' THEN
+--             INSERT INTO Students VALUES (l.old_id, l.old_name, l.old_group);
+--         ELSIF l.type = 'UPDATE' THEN
+--             UPDATE Students SET name = l.old_name, group_id = l.old_group WHERE id = l.new_id; 
+--         ELSIF l.type = 'INSERT' THEN
+--             DELETE FROM Students WHERE id = l.new_id;
+--         END IF;
+--     END LOOP;
+--     DELETE FROM Logs WHERE time>=st AND time<=fin;
+-- END RestoreDataByInterval;
+
 -- task 6
 
 -- CREATE TRIGGER UpdateCountOfStudents
@@ -200,8 +239,12 @@
 -- END;
 
 
--- INSERT INTO Students VALUES (10, 'MAMA', 3);
+-- INSERT INTO Students VALUES (10, 'pika', 2);
+BEGIN 
+    RestoreDataByInterval(TO_TIMESTAMP('27-FEB-23 01.50.05.000000000 AM'), TO_TIMESTAMP('27-FEB-23 01.53.05.000000000 AM'));
+END;
+/
 
--- SELECT * FROM Logs;
 
--- CREATE PROCEDURE RestoreDataByTime()
+-- UPDATE Students SET name = 'mama' WHERE id = 9;
+SELECT * FROM Students;
