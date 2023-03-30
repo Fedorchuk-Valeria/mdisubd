@@ -1,4 +1,9 @@
-CREATE TABLE MyTable(
+-- CREATE TABLE MyTable(
+--     id NUMBER,
+--     val VARCHAR2(10)
+-- );
+
+CREATE TABLE MainTable(
     id NUMBER,
-    val VARCHAR2(10)
+    name VARCHAR(2)
 );

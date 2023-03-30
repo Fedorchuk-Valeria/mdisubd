@@ -26,6 +26,7 @@ BEGIN
                 SELECT COUNT(*) INTO col2 FROM dba_tab_columns
                 WHERE table_name = p.table_name AND owner = 'PRODUSER';
                 IF col1 = col2 THEN
+                    c := 0;
                     FOR typesDev IN (SELECT column_name, data_type FROM dba_tab_columns WHERE table_name = d.table_name AND owner = 'DEVUSER')
                     LOOP
                         FOR typesProd IN (SELECT column_name, data_type FROM dba_tab_columns WHERE table_name = p.table_name AND owner = 'PRODUSER')
@@ -34,10 +35,10 @@ BEGIN
                                 c := c + 1;
                             END IF;
                         END LOOP;
-                        IF c = col1 THEN
-                            ch := TRUE;
-                        END IF;
                     END LOOP;
+                    IF c = col1 THEN
+                            ch := TRUE;
+                    END IF;
                 END IF;
             END IF;
         END LOOP;

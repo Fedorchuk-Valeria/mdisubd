@@ -3,7 +3,12 @@
 --     val NUMBER
 -- );
 
-CREATE TABLE YourTable(
+-- CREATE TABLE YourTable(
+--     id NUMBER,
+--     num NUMBER
+-- );
+
+CREATE TABLE MainTable(
     id NUMBER,
-    num NUMBER
+    name VARCHAR(2)
 );
