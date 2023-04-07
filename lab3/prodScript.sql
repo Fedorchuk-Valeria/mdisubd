@@ -28,4 +28,9 @@
 
 -- DROP FUNCTION MainFunc;
 
-CREATE INDEX mainTableName ON MainTable (id);
+-- CREATE INDEX mainTableName ON MainTable (id);
+
+CREATE TABLE ProdTable(
+    id NUMBER,
+    prod VARCHAR(2)
+);
