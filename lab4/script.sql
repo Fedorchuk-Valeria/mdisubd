@@ -4,7 +4,7 @@
 --     value NUMBER
 -- );
 
--- task1
+-- task1-2
 
 -- CREATE TABLE Attributes(
 --     name VARCHAR2(20)
@@ -24,6 +24,16 @@
 -- DROP TABLE JsonString;
 
 -- INSERT INTO JsonString VALUES(1, ' ');
+
+DROP FUNCTION Parse;
+
+CREATE FUNCTION Parse(json_string IN VARCHAR2) RETURN VARCHAR2 
+IS
+result VARCHAR2(400) := '';
+BEGIN
+   result := SelectParse(json_string);
+   RETURN result;
+END;
 
 DROP FUNCTION SelectParse;
 
@@ -81,6 +91,11 @@ BEGIN
         j := INSTR(json_str, ',');
         IF j = 0 THEN
             j := INSTR(json_str, '}');
+        END IF;
+        IF a.name = 'where' AND (INSTR(SUBSTR(json_str, i, j - i), 'no') > 3 OR INSTR(SUBSTR(json_str, i, j - i), 'no') = 0) THEN
+            result := result || ' WHERE ';
+            result := result || TwoInnerConditionParse(SUBSTR(json_str, i));
+            CONTINUE;
         END IF;
         IF INSTR(SUBSTR(json_str, i, j - i), 'no') = 0 THEN
             result := result || SUBSTR(json_str, i, j - i);
@@ -215,16 +230,6 @@ BEGIN
     RETURN result;
 END;
 
-DROP FUNCTION Parse;
-
-CREATE FUNCTION Parse(json_string IN VARCHAR2) RETURN VARCHAR2 
-IS
-result VARCHAR2(400) := '';
-BEGIN
-   result := SelectParse(json_string);
-   RETURN result;
-END;
-
 BEGIN
     DBMS_OUTPUT.PUT_LINE(Parse('{ "type": SELECT, "cols": id, "tables": FROM MyTable1, "where": 
     { "first_op": 
@@ -277,4 +282,165 @@ BEGIN
       DBMS_OUTPUT.PUT_LINE('id '||table_rec.id|| ' name ' ||table_rec.name|| ' value ' ||table_rec.value|| ';');
    END LOOP;
    CLOSE table_cv;
+END;
+
+-- task3
+
+-- CREATE TABLE InsertAttributes(
+--     name VARCHAR2(20)
+-- );
+
+-- DROP TABLE InsertAttributes;
+-- INSERT INTO InsertAttributes VALUES('values');
+
+-- CREATE TABLE UpdateAttributes(
+--     name VARCHAR2(20)
+-- );
+
+-- INSERT INTO UpdateAttributes VALUES('where');
+
+CREATE TABLE DeleteAttributes(
+    name VARCHAR2(20)
+);
+
+INSERT INTO DeleteAttributes VALUES('where');
+
+DROP FUNCTION Parse;
+
+CREATE FUNCTION Parse(json_string IN VARCHAR2) RETURN VARCHAR2 
+IS
+result VARCHAR2(400) := '';
+BEGIN
+   result := DeleteParse(json_string);
+   RETURN result;
+END;
+
+DROP FUNCTION InsertParse;
+
+CREATE FUNCTION InsertParse(json_string IN VARCHAR2) RETURN VARCHAR2 
+IS
+result VARCHAR2(400) := '';
+i NUMBER;
+j NUMBER;
+json_str VARCHAR2(600) := '';
+CURSOR attr IS SELECT * FROM InsertAttributes;
+BEGIN
+    UPDATE JsonString SET value = json_string WHERE id = 1;
+    FOR a IN attr
+    LOOP
+        SELECT value INTO json_str FROM JsonString WHERE id = 1;
+        i := INSTR(json_str, a.name);
+        i := i + LENGTH(a.name) + 2;
+        j := INSTR(json_str, ',');
+        IF j = 0 THEN
+            j := INSTR(json_str, '}');
+        END IF;
+        IF a.name = 'values' THEN
+                result := result || ' VALUES ';
+        END IF;
+        IF INSTR(SUBSTR(json_str, i, j - i), 'no') = 0 THEN
+            IF a.name = 'cols' OR a.name = 'values' THEN
+                result := result || '(' || SUBSTR(json_str, i, j - i) || ')';
+            ELSE
+                result := result || SUBSTR(json_str, i, j - i); 
+            END IF;
+        END IF;
+        UPDATE JsonString SET value = SUBSTR(json_str, j + 1) WHERE id = 1;
+        result := REPLACE(result, '/', ', ');
+        -- DBMS_OUTPUT.PUT_LINE('select');
+        -- DBMS_OUTPUT.PUT_LINE(result);
+        -- DBMS_OUTPUT.PUT_LINE(SUBSTR(json_str, j + 1));
+    END LOOP;
+    RETURN result;   
+END;
+
+BEGIN
+    DBMS_OUTPUT.PUT_LINE(Parse('{ "type": INSERT, "tables": INTO MyTable, "cols": id/name/value, "values": 1/"lol"/7 }'));
+END;
+
+DROP FUNCTION UpdateParse;
+
+CREATE FUNCTION UpdateParse(json_string IN VARCHAR2) RETURN VARCHAR2 
+IS
+result VARCHAR2(400) := '';
+i NUMBER;
+j NUMBER;
+json_str VARCHAR2(600) := '';
+CURSOR attr IS SELECT * FROM UpdateAttributes;
+BEGIN
+    UPDATE JsonString SET value = json_string WHERE id = 1;
+    FOR a IN attr
+    LOOP
+        SELECT value INTO json_str FROM JsonString WHERE id = 1;
+        i := INSTR(json_str, a.name);
+        i := i + LENGTH(a.name) + 2;
+        j := INSTR(json_str, ',');
+        IF j = 0 THEN
+            j := INSTR(json_str, '}');
+        END IF;
+        IF a.name = 'where' AND (INSTR(SUBSTR(json_str, i, j - i), 'no') > 3 OR INSTR(SUBSTR(json_str, i, j - i), 'no') = 0) THEN
+            result := result || ' WHERE ';
+            result := result || ConditionParse(SUBSTR(json_str, i));
+            CONTINUE;
+        END IF;
+        IF INSTR(SUBSTR(json_str, i, j - i), 'no') = 0 THEN
+            result := result || SUBSTR(json_str, i, j - i);
+        END IF;
+        UPDATE JsonString SET value = SUBSTR(json_str, j + 1) WHERE id = 1;
+        result := REPLACE(result, '/', ', ');
+        -- DBMS_OUTPUT.PUT_LINE('select');
+        -- DBMS_OUTPUT.PUT_LINE(result);
+        -- DBMS_OUTPUT.PUT_LINE(SUBSTR(json_str, j + 1));
+    END LOOP;
+    RETURN result;   
+END;
+
+BEGIN
+    DBMS_OUTPUT.PUT_LINE(Parse('{ "type": UPDATE, "tables": MyTable, "cols": value, "values": 5, "where": 
+    { "first_op": id, "operator": =, "second_op": 
+    { "type": SELECT, "cols": id, "tables": FROM MyTable2, "where": 
+    { "first_op": value, "operator": =, "second_op": 6 }, "join": no } } }'));
+END;
+
+DROP FUNCTION DeleteParse;
+
+CREATE FUNCTION DeleteParse(json_string IN VARCHAR2) RETURN VARCHAR2 
+IS
+result VARCHAR2(400) := '';
+i NUMBER;
+j NUMBER;
+json_str VARCHAR2(600) := '';
+CURSOR attr IS SELECT * FROM DeleteAttributes;
+BEGIN
+    UPDATE JsonString SET value = json_string WHERE id = 1;
+    FOR a IN attr
+    LOOP
+        SELECT value INTO json_str FROM JsonString WHERE id = 1;
+        i := INSTR(json_str, a.name);
+        i := i + LENGTH(a.name) + 2;
+        j := INSTR(json_str, ',');
+        IF j = 0 THEN
+            j := INSTR(json_str, '}');
+        END IF;
+        IF a.name = 'where' AND (INSTR(SUBSTR(json_str, i, j - i), 'no') > 3 OR INSTR(SUBSTR(json_str, i, j - i), 'no') = 0) THEN
+            result := result || ' WHERE ';
+            result := result || ConditionParse(SUBSTR(json_str, i));
+            CONTINUE;
+        END IF;
+        IF INSTR(SUBSTR(json_str, i, j - i), 'no') = 0 THEN
+            result := result || SUBSTR(json_str, i, j - i);
+        END IF;
+        UPDATE JsonString SET value = SUBSTR(json_str, j + 1) WHERE id = 1;
+        -- DBMS_OUTPUT.PUT_LINE('select');
+        -- DBMS_OUTPUT.PUT_LINE(result);
+        -- DBMS_OUTPUT.PUT_LINE(SUBSTR(json_str, j + 1));
+    END LOOP;
+    RETURN result;   
+END;
+
+BEGIN
+    DBMS_OUTPUT.PUT_LINE(Parse('{ "type": DELETE, "tables": FROM MyTable, "where": 
+    { "first_op": id, "operator": =, "second_op": 
+    { "type": SELECT, "cols": id, "tables": FROM MyTable2, "where": 
+    { "first_op": value, "operator": =, "second_op": 6 }, "join": no } } }'));
 END;
