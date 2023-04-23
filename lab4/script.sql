@@ -16,59 +16,80 @@
 -- );
 -- INSERT INTO ConditionAttributes VALUES('second_op');
 
+-- CREATE TABLE JsonString(
+--     id NUMBER,
+--     value VARCHAR2(600)
+-- );
+
+-- DROP TABLE JsonString;
+
+-- INSERT INTO JsonString VALUES(1, ' ');
+
 DROP FUNCTION SelectParse;
 
 CREATE FUNCTION SelectParse(json_string IN VARCHAR2) RETURN VARCHAR2 
 IS
-result VARCHAR2(200) := '';
+result VARCHAR2(400) := '';
 i NUMBER;
 j NUMBER;
-c NUMBER := 1;
-b NUMBER := 1;
+json_str VARCHAR2(600) := '';
 CURSOR attr IS SELECT * FROM Attributes;
 BEGIN
+    UPDATE JsonString SET value = json_string WHERE id = 1;
     FOR a IN attr
     LOOP
-        i := INSTR(json_string, a.name);
+        SELECT value INTO json_str FROM JsonString WHERE id = 1;
+        i := INSTR(json_str, a.name);
         i := i + LENGTH(a.name) + 2;
-        j := INSTR(json_string, ',', 1, c);
+        j := INSTR(json_str, ',');
         IF j = 0 THEN
-            j := INSTR(json_string, '}', 1, b);
+            j := INSTR(json_str, '}');
         END IF;
-        IF a.name = 'where' AND INSTR(SUBSTR(json_string, i, j - i), 'no') < i + 8 THEN
-            result := result || ConditionParse(SUBSTR(json_string, i));
-            c := c + 3;
+        IF a.name = 'where' AND (INSTR(SUBSTR(json_str, i, j - i), 'no') > 3 OR INSTR(SUBSTR(json_str, i, j - i), 'no') = 0) THEN
+            result := result || ' WHERE ';
+            result := result || ConditionParse(SUBSTR(json_str, i));
             CONTINUE;
         END IF;
-        IF INSTR(SUBSTR(json_string, i, j - i), 'no') = 0 THEN
-            result := result || SUBSTR(json_string, i, j - i);
+        IF INSTR(SUBSTR(json_str, i, j - i), 'no') = 0 THEN
+            result := result || SUBSTR(json_str, i, j - i);
         END IF;
-        c := c + 1;
+        UPDATE JsonString SET value = SUBSTR(json_str, j + 1) WHERE id = 1;
+        result := REPLACE(result, '/', ', ');
+        -- DBMS_OUTPUT.PUT_LINE('select');
+        -- DBMS_OUTPUT.PUT_LINE(result);
+        -- DBMS_OUTPUT.PUT_LINE(SUBSTR(json_str, j + 1));
     END LOOP;
     RETURN result;   
 END;
+
+DROP FUNCTION InnerSelectParse;
 
 CREATE FUNCTION InnerSelectParse(json_string IN VARCHAR2) RETURN VARCHAR2 
 IS
 result VARCHAR2(100) := '';
 i NUMBER;
 j NUMBER;
-c NUMBER := 1;
-b NUMBER := 1;
+json_str VARCHAR2(500);
 CURSOR attr IS SELECT * FROM Attributes;
 BEGIN
+    UPDATE JsonString SET value = json_string WHERE id = 1;
     FOR a IN attr
     LOOP
-        i := INSTR(json_string, a.name);
+        SELECT value INTO json_str FROM JsonString WHERE id = 1;
+        i := INSTR(json_str, a.name);
         i := i + LENGTH(a.name) + 2;
-        j := INSTR(json_string, ',', 1, c);
+        j := INSTR(json_str, ',');
         IF j = 0 THEN
-            j := INSTR(json_string, '}', 1, b);
+            j := INSTR(json_str, '}');
         END IF;
-        IF INSTR(SUBSTR(json_string, i, j - i), 'no') = 0 THEN
-            result := result || SUBSTR(json_string, i, j - i);
+        IF INSTR(SUBSTR(json_str, i, j - i), 'no') = 0 THEN
+            result := result || SUBSTR(json_str, i, j - i);
         END IF;
-        c := c + 1;
+        UPDATE JsonString SET value = SUBSTR(json_str, j + 1) WHERE id = 1;
+        result := REPLACE(result, '/', ', ');
+        -- DBMS_OUTPUT.PUT_LINE('innerselect');
+        -- DBMS_OUTPUT.PUT_LINE(result);
+        -- DBMS_OUTPUT.PUT_LINE(SUBSTR(json_str, j + 1));
     END LOOP;
     RETURN result;   
 END;
@@ -77,37 +98,119 @@ DROP FUNCTION ConditionParse;
 
 CREATE FUNCTION ConditionParse(json_string IN VARCHAR2) RETURN VARCHAR2 
 IS
-result VARCHAR2(200) := '';
+result VARCHAR2(500) := '';
 i NUMBER;
 j NUMBER;
-c NUMBER := 1;
-b NUMBER := 1;
-inn NUMBER;
-jn NUMBER;
-cn NUMBER := 1;
-bn NUMBER := 1;
+json_str VARCHAR2(500);
 CURSOR attr IS SELECT * FROM Attributes;
 CURSOR con_attr IS SELECT * FROM ConditionAttributes;
 BEGIN
-    result := result || ' where ';
+    UPDATE JsonString SET value = json_string WHERE id = 1;
     FOR c_a IN con_attr
     LOOP
-        i := INSTR(json_string, c_a.name);
+        SELECT value INTO json_str FROM JsonString WHERE id = 1;
+        i := INSTR(json_str, c_a.name);
         i := i + LENGTH(c_a.name) + 2;
-        j := INSTR(json_string, ',', 1, c);
+        j := INSTR(json_str, ',', 1);
         IF j = 0 THEN
-            j := INSTR(json_string, '}', 1, b);
+            j := INSTR(json_str, '}', 1);
         END IF;
-        IF INSTR(SUBSTR(json_string, i, j - i), 'SELECT') <> 0 THEN
-            result := result || ' (' || InnerSelectParse(SUBSTR(json_string, i)) || ')';
-            c := c + 5;
+        IF INSTR(SUBSTR(json_str, i, j - i), 'SELECT') < j - i - 4 AND INSTR(SUBSTR(json_str, i, j - i), 'SELECT') <> 0 THEN
+            result := result || ' (' || InnerSelectParse(SUBSTR(json_str, i)) || ')';
             CONTINUE;
         END IF;
-        IF INSTR(SUBSTR(json_string, i, j - i), 'no') = 0 THEN
-            result := result || SUBSTR(json_string, i, j - i);
+        IF INSTR(SUBSTR(json_str, i, j - i), 'where') <> 0 THEN
+            result := result || InnerConditionParse(SUBSTR(json_str, i));
+            CONTINUE;
+        END IF;
+        IF INSTR(SUBSTR(json_str, i, j - i), 'no') = 0 THEN
+            result := result || SUBSTR(json_str, i, j - i);
         END IF;
         result := REPLACE(result, '}', '');
-        c := c + 1;
+        UPDATE JsonString SET value = SUBSTR(json_str, j + 1) WHERE id = 1;
+        -- DBMS_OUTPUT.PUT_LINE('condition');
+        -- DBMS_OUTPUT.PUT_LINE(result);
+        -- DBMS_OUTPUT.PUT_LINE(SUBSTR(json_str, j + 1));
+    END LOOP;
+    RETURN result;
+END;
+
+DROP FUNCTION TwoInnerConditionParse;
+
+CREATE FUNCTION InnerConditionParse(json_string IN VARCHAR2) RETURN VARCHAR2 
+IS
+result VARCHAR2(200) := '';
+i NUMBER;
+j NUMBER;
+CURSOR attr IS SELECT * FROM Attributes;
+CURSOR con_attr IS SELECT * FROM ConditionAttributes;
+json_str VARCHAR2(500);
+BEGIN
+    UPDATE JsonString SET value = json_string WHERE id = 1;
+    FOR c_a IN con_attr
+    LOOP
+        SELECT value INTO json_str FROM JsonString WHERE id = 1;
+        i := INSTR(json_str, c_a.name);
+        i := i + LENGTH(c_a.name) + 2;
+        j := INSTR(json_str, ',');
+        IF j = 0 THEN
+            j := INSTR(json_str, '}');
+        END IF;
+        IF INSTR(SUBSTR(json_str, i, j - i), 'where') <> 0 THEN
+            result := result || TwoInnerConditionParse(SUBSTR(json_str, i));
+            CONTINUE;
+        END IF;
+        IF INSTR(SUBSTR(json_str, i, j - i), 'SELECT') < j - i - 4 AND INSTR(SUBSTR(json_str, i, j - i), 'SELECT') <> 0 THEN
+            result := result || ' (' || InnerSelectParse(SUBSTR(json_str, i)) || ')';
+            CONTINUE;
+        END IF;
+        IF INSTR(SUBSTR(json_str, i, j - i), 'no') = 0 THEN
+            result := result || SUBSTR(json_str, i, j - i);
+        END IF;
+        result := REPLACE(result, '}', '');
+        UPDATE JsonString SET value = SUBSTR(json_str, j + 1) WHERE id = 1;
+        -- DBMS_OUTPUT.PUT_LINE('innercondition');
+        -- DBMS_OUTPUT.PUT_LINE(result);
+        -- DBMS_OUTPUT.PUT_LINE(SUBSTR(json_str, j + 1));
+    END LOOP;
+    RETURN result;
+END;
+
+CREATE FUNCTION TwoInnerConditionParse(json_string IN VARCHAR2) RETURN VARCHAR2 
+IS
+result VARCHAR2(200) := '';
+i NUMBER;
+j NUMBER;
+CURSOR attr IS SELECT * FROM Attributes;
+CURSOR con_attr IS SELECT * FROM ConditionAttributes;
+json_str VARCHAR2(500);
+BEGIN
+    UPDATE JsonString SET value = json_string WHERE id = 1;
+    FOR c_a IN con_attr
+    LOOP
+        SELECT value INTO json_str FROM JsonString WHERE id = 1;
+        i := INSTR(json_str, c_a.name);
+        i := i + LENGTH(c_a.name) + 2;
+        j := INSTR(json_str, ',');
+        IF j = 0 THEN
+            j := INSTR(json_str, '}');
+        END IF;
+        -- IF INSTR(SUBSTR(json_str, i, j - i), 'where') <> 0 THEN
+        --     result := result || TwoInnerConditionParse(SUBSTR(json_str, i));
+        --     CONTINUE;
+        -- END IF;
+        -- IF INSTR(SUBSTR(json_str, i, j - i), 'SELECT') < j - i - 4 AND INSTR(SUBSTR(json_str, i, j - i), 'SELECT') <> 0 THEN
+        --     result := result || ' (' || InnerSelectParse(SUBSTR(json_str, i)) || ')';
+        --     CONTINUE;
+        -- END IF;
+        IF INSTR(SUBSTR(json_str, i, j - i), 'no') = 0 THEN
+            result := result || SUBSTR(json_str, i, j - i);
+        END IF;
+        result := REPLACE(result, '}', '');
+        UPDATE JsonString SET value = SUBSTR(json_str, j + 1) WHERE id = 1;
+        -- DBMS_OUTPUT.PUT_LINE('innerinnercondition');
+        -- DBMS_OUTPUT.PUT_LINE(result);
+        -- DBMS_OUTPUT.PUT_LINE(SUBSTR(json_str, j + 1));
     END LOOP;
     RETURN result;
 END;
@@ -123,13 +226,22 @@ BEGIN
 END;
 
 BEGIN
-    DBMS_OUTPUT.PUT_LINE(Parse('{ "type": SELECT, "cols": name, "tables": FROM MyTable1, "where": 
+    DBMS_OUTPUT.PUT_LINE(Parse('{ "type": SELECT, "cols": id, "tables": FROM MyTable1, "where": 
     { "first_op": 
-    { "where: "first_op": id, "operator": IN, "second_op": 
-    { "type": SELECT, "cols": name, "tables": FROM MyTable2, "where": no, "join": no}}, 
-    "operator": EXISTS, "second_op": 
-    {"type": SELECT, "cols": name, "tables": FROM MyTable2, "where": no, "join": no} }, 
+    { "where": { "first_op": id, "operator": IN, "second_op": 
+    { "type": SELECT, "cols": id, "tables": FROM MyTable2, "where": no, "join": no } } }, 
+    "operator": AND, "second_op": 
+    { "where": { "first_op":
+    { "where": { "first_op": name, "operator": LIKE, "second_op": "HGCX"}}, "operator": AND,  "second_op": 
+    { "where": { "first_op": age, "operator": BETWEEN, "second_op": 12 AND 20 }
+    }}, 
     "join": no }'));
+END;
+
+BEGIN
+    DBMS_OUTPUT.PUT_LINE(Parse('{ "type": SELECT, "cols": id/name, "tables": FROM MyTable, "where": 
+    { "first_op": no, "operator": EXISTS, "second_op": 
+    { "type": SELECT, "cols": id, "tables": FROM MyTable2, "where": no, "join": no } }, "join": no }'));
 END;
 
 DECLARE
