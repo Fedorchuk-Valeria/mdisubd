@@ -311,7 +311,7 @@ CREATE FUNCTION Parse(json_string IN VARCHAR2) RETURN VARCHAR2
 IS
 result VARCHAR2(400) := '';
 BEGIN
-   result := DeleteParse(json_string);
+   result := CreateParse(json_string);
    RETURN result;
 END;
 
@@ -443,4 +443,172 @@ BEGIN
     { "first_op": id, "operator": =, "second_op": 
     { "type": SELECT, "cols": id, "tables": FROM MyTable2, "where": 
     { "first_op": value, "operator": =, "second_op": 6 }, "join": no } } }'));
+END;
+
+--task4
+
+CREATE TABLE DropAttributes(
+    name VARCHAR2(20)
+);
+
+INSERT INTO DropAttributes VALUES('tables');
+
+DROP FUNCTION DropParse;
+
+CREATE FUNCTION DropParse(json_string IN VARCHAR2) RETURN VARCHAR2 
+IS
+result VARCHAR2(400) := '';
+i NUMBER;
+j NUMBER;
+json_str VARCHAR2(600) := '';
+CURSOR attr IS SELECT * FROM DeleteAttributes;
+BEGIN
+    UPDATE JsonString SET value = json_string WHERE id = 1;
+    FOR a IN attr
+    LOOP
+        SELECT value INTO json_str FROM JsonString WHERE id = 1;
+        i := INSTR(json_str, a.name);
+        i := i + LENGTH(a.name) + 2;
+        j := INSTR(json_str, ',');
+        IF j = 0 THEN
+            j := INSTR(json_str, '}');
+        END IF;
+        IF INSTR(SUBSTR(json_str, i, j - i), 'no') = 0 THEN
+            result := result || SUBSTR(json_str, i, j - i);
+        END IF;
+        UPDATE JsonString SET value = SUBSTR(json_str, j + 1) WHERE id = 1;
+        -- DBMS_OUTPUT.PUT_LINE('select');
+        -- DBMS_OUTPUT.PUT_LINE(result);
+        -- DBMS_OUTPUT.PUT_LINE(SUBSTR(json_str, j + 1));
+    END LOOP;
+    RETURN result;   
+END;
+
+BEGIN
+    DBMS_OUTPUT.PUT_LINE(Parse('{ "type": DROP, "tables": MyTable }'));
+END;
+
+CREATE TABLE CreateAttributes(
+    name VARCHAR2(20)
+);
+
+INSERT INTO CreateAttributes VALUES('constr');
+
+CREATE TABLE ConstrAttributes(
+    name VARCHAR2(20)
+);
+
+INSERT INTO ConstrAttributes VALUES('cols');
+
+DROP FUNCTION GenerateTrigger;
+
+CREATE FUNCTION GenerateTrigger(t IN VARCHAR2, c IN VARCHAR2) RETURN VARCHAR2
+IS
+result VARCHAR2(900) := '';
+BEGIN
+    result := 'CREATE TRIGGER AutoincrementId BEFORE INSERT ON ' ||t|| ' FOR EACH ROW DECLARE PRAGMA AUTONOMOUS_TRANSACTION; newId NUMBER := 0; BEGIN SELECT ' ||c|| ' INTO newId FROM ' ||t|| ' ORDER BY id DESC FETCH FIRST 1 ROWS ONLY;
+:NEW.id := newId + 1;
+EXCEPTION WHEN NO_DATA_FOUND THEN
+:NEW.id := 1;
+ END;';
+    RETURN result;
+END;
+
+CREATE FUNCTION ConstraintParse(json_string IN VARCHAR2, t IN VARCHAR2) RETURN VARCHAR2 
+IS
+result VARCHAR2(200) := '';
+i NUMBER;
+j NUMBER;
+CURSOR con_attr IS SELECT * FROM ConstrAttributes;
+json_str VARCHAR2(500);
+BEGIN
+    UPDATE JsonString SET value = json_string WHERE id = 1;
+    FOR c_a IN con_attr
+    LOOP
+        SELECT value INTO json_str FROM JsonString WHERE id = 1;
+        i := INSTR(json_str, c_a.name);
+        i := i + LENGTH(c_a.name) + 2;
+        j := INSTR(json_str, ',');
+        IF j = 0 THEN
+            j := INSTR(json_str, '}');
+        END IF;
+        IF c_a.name = 'cols' THEN
+             DBMS_OUTPUT.PUT_LINE(GenerateTrigger(t, SUBSTR(json_str, i, j - i)));
+        END IF;
+        IF INSTR(SUBSTR(json_str, i, j - i), 'no') = 0 THEN
+            result := result || SUBSTR(json_str, i, j - i);
+        END IF;
+        result := REPLACE(result, '}', '');
+        UPDATE JsonString SET value = SUBSTR(json_str, j + 1) WHERE id = 1;
+        -- DBMS_OUTPUT.PUT_LINE('innerinnercondition');
+        -- DBMS_OUTPUT.PUT_LINE(result);
+        -- DBMS_OUTPUT.PUT_LINE(SUBSTR(json_str, j + 1));
+    END LOOP;
+    RETURN result;
+END;
+
+DROP FUNCTION CreateParse;
+
+CREATE FUNCTION CreateParse(json_string IN VARCHAR2) RETURN VARCHAR2 
+IS
+result VARCHAR2(400) := '';
+i NUMBER;
+j NUMBER;
+b1 NUMBER := 1;
+b2 NUMBER := 1;
+json_str VARCHAR2(600) := '';
+c VARCHAR2(50) := '';
+t VARCHAR2(50) := '';
+CURSOR attr IS SELECT * FROM CreateAttributes;
+BEGIN
+    UPDATE JsonString SET value = json_string WHERE id = 1;
+    FOR a IN attr
+    LOOP
+        SELECT value INTO json_str FROM JsonString WHERE id = 1;
+        i := INSTR(json_str, a.name);
+        i := i + LENGTH(a.name) + 2;
+        IF a.name = 'cols' THEN
+        result := result || '( ';
+            i := INSTR(json_str, '[', 1, b1);
+            j := INSTR(json_str, ']', 1, b2);
+            WHILE i <> 0
+            LOOP
+                IF b1 <> 1 THEN
+                    result := result || ', ' ;
+                END IF;
+                c := SUBSTR(json_str, i, j - i);
+                j := INSTR(c, ',');
+                result := result || SUBSTR(c, 2, j - 2) || SUBSTR(c, j + 1);
+                b1 := b1 + 1;
+                b2 := b2 + 1;
+                i := INSTR(json_str, '[', 1, b1);
+                j := INSTR(json_str, ']', 1, b2);
+            END LOOP;
+            UPDATE JsonString SET value = SUBSTR(json_str, INSTR(json_str, ']', 1, b2 - 1) + 2) WHERE id = 1;
+            CONTINUE;
+        END IF;
+        j := INSTR(json_str, ',');
+        IF j = 0 THEN
+            j := INSTR(json_str, '}');
+        END IF;
+        IF a.name = 'tables' THEN
+            t := SUBSTR(json_str, i, j - i);
+        END IF;
+        IF a.name = 'constr' AND (INSTR(SUBSTR(json_str, i, j - i), 'no') > 3 OR INSTR(SUBSTR(json_str, i, j - i), 'no') = 0) THEN
+            result := result || ', CONSTRAINT ';
+            result := result || ConstraintParse(SUBSTR(json_str, i), t);
+            result := result || ') ';
+            CONTINUE;
+        END IF;
+        IF INSTR(SUBSTR(json_str, i, j - i), 'no') = 0 THEN
+            result := result || SUBSTR(json_str, i, j - i);
+        END IF;
+        UPDATE JsonString SET value = SUBSTR(json_str, j + 1) WHERE id = 1;
+    END LOOP;
+    RETURN result;   
+END;
+
+BEGIN
+    DBMS_OUTPUT.PUT_LINE(Parse('{ "type": CREATE TABLE, "tables": MyTable, "cols": [id, NUMBER], [name, VARCHAR2(50)], "constr": 
+    {"name": mytable_pk, "type": PRIMARY KEY, "cols": id}}'));
 END;
